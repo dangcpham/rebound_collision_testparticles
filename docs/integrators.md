@@ -231,7 +231,7 @@ The following code enables the BS integrator and sets both the relative and abso
     sim.ri_bs.eps_abs = 1e-4
     ```
 
-The BS integrator tries to keep the error of each coordinate $y$ below $\epsilon_{abs} + \epsilon_{rel} \cdot  \left|y\right|$. Note that this applies to both position and velocity coordinates of all particles which implues that the code units you're choosing for the integration matter. If you need fine control over the scales used internally, you can set the `getscale` function pointer in `r->ri_bs.nbody_ode` (this is currently undocumented, search the source code for `getscale` to find out more).
+The BS integrator tries to keep the error of each coordinate $y$ below $\epsilon_{abs} + \epsilon_{rel} \cdot  \left|y\right|$. Note that this applies to both position and velocity coordinates of all particles which implies that the code units you're choosing for the integration matter. If you need fine control over the scales used internally, you can set the `getscale` function pointer in `r->ri_bs.nbody_ode` (this is currently undocumented, search the source code for `getscale` to find out more).
 
 !!! Info
         The code does not guarantee that the errors remain below the tolerances. In particular, note that BS is not a symplectic integrator which results in errors growing linearly in time (phase errors grow quadratically in time). It requires some experimentation to find the tolerances that offer the best compromise between accuracy and speed for your specific problem. 
@@ -595,7 +595,7 @@ TES stands for **T**errestrial **E**xoplanet **S**imulator. TES builds upon the 
 The algorithm is described in detail in [Bartram & Wittig 2021](https://ui.adsabs.harvard.edu/abs/2021MNRAS.504..678B/abstract). 
     
 !!! Important
-    TES is a new addition to REBOUND. Whereas it has been tested extensively, you might experience some bugs and there are likely edge cases where it will not return physical results. It is therefore especially important to make sure that simulations using TES are convergend and not dependent on any numerical parameters. This can be done by varying the timestep and other paramters or by comparing results to simulations using other integrators. Please report any issue that you encounter on GitHub.
+    TES is a new addition to REBOUND. Whereas it has been tested extensively, you might experience some bugs and there are likely edge cases where it will not return physical results. It is therefore especially important to make sure that simulations using TES are converged and not dependent on any numerical parameters. This can be done by varying the timestep and other parameters or by comparing results to simulations using other integrators. Please report any issue that you encounter on GitHub.
 
 
 
@@ -619,7 +619,7 @@ The following code shows how to enable TES and how to set some of its control pa
     sim.ri_tes.epsilon = 1e-6
     ```
 
-The setting for TES are stored in the `reb_simulation_integrator_tes` structure. For almost all use cases TES will work best with default settings for all configuration variables below and can therefore be left uninitialised in your code. The two cases where a user may want the adjust these values are if: 1) a severe shrinkage of the semi-major axis of the inner-most planet is expected; 2) the ratio of the most massive planet mass to that of the star exceeds 1e-2, and in this case it is typically better to use IAS15.
+The setting for TES are stored in the `reb_simulation_integrator_tes` structure. For almost all use cases TES will work best with default settings for all configuration variables below and can therefore be left uninitialized in your code. The two cases where a user may want the adjust these values are if: 1) a severe shrinkage of the semi-major axis of the inner-most planet is expected; 2) the ratio of the most massive planet mass to that of the star exceeds 1e-2, and in this case it is typically better to use IAS15.
 
 `dq_max` (`double`)
 :   The value of dq/q that triggers a rectification. Generally, this variable can be left at the default value of $10^{-2}$ as the `recti_per_orbit` variable is the main rectification trigger. One exception is for systems where the ratio of the most massive planet's mass to the stellar mass is greater than $10^{-2}$, and in this case the value should be set to that ratio to avoid excessive rectification frequency. However, in this use case it is typically better to use IAS15 instead.    
@@ -658,3 +658,92 @@ Here is how to do that:
     sim = rebound.Simulation()
     sim.integrator = "none"
     ```
+
+## WHFast512
+
+WHFast512 is a symplectic Wisdom-Holman integrator. 
+It is using Single Instruction Multiple Data (SIMD) parallelism and 512-bit Advanced Vector Extensions (AVX512) to speed up the integration of planetary systems by up to 4.7x compared to the standard version of WHFast. 
+
+!!! warning "Important"
+
+    To use WHFast512 you need to compile and run REBOUND on a computer that has a CPU which supports AVX512 instructions.
+    You will see an error message if you try to use WHFast512 but have not compiled REBOUND with the AVX512 flag.
+    We describe below how to do this for both the C and python versions of REBOUND below.
+
+    To find out if your CPU supports AVX512 instructions, check for the AVX512 flags by running
+    ```bash
+    cat /proc/cpuinfo | grep avx512
+    ```
+    
+    Note that you can read SimulationArchives of simulations which used WHFast512 on machines that do not support AVX512 instruction.
+    If a synchronization is required, it will be performed with the standard WHFast integrator.
+
+
+=== "C"
+    To turn on the AVX512 flag, go to the Makefile in problem directory. Add this line at the top:
+    ```
+    export AVX512=1
+    ```
+    To explicitly turn AVX512 off, add
+    ```
+    export AVX512=0
+    ```
+    Also make sure to add the `-march=native` flag to the compiler. This will optimize your code (and enable AVX512 instruction) for the specific CPU you're using.
+    ```
+    export OPT=-march=native
+    ```
+    Then, clean your build directory and (re)-build REBOUND with
+    ```bash
+    make clean
+    make
+    ```
+
+=== "Python"
+    To use WHFast512 from python, you cannot use `pip install rebound`. 
+    Instead download the source code of REBOUND. 
+    Open `the setup.py` file in the main directory and find the line where `extra_compile_args` are declared.
+    Comment out the line without AVX512 and uncomment the line with AVX512.
+    Then install REBOUND by running 
+    ```
+    pip install -e .
+    ```
+    from the main directory. 
+
+Once you have compiled REBOUND with AVX512 enabled, you can use WHFast512 like any other integrator:
+
+=== "C"
+    ```c
+    struct reb_simulation* r = reb_create_simulation();
+    r->integrator = REB_INTEGRATOR_WHFAST512;
+    ```
+
+=== "Python"
+    ```python
+    sim = rebound.Simulation()
+    sim.integrator = "whfast512"
+    ```
+
+See also [this example](c_examples/whfast512_solar_system) on how to use WHFast512.
+
+To allow for the best performance, WHFast512 has certain limitations that WHFast does not have.
+
+- The number of particles cannot exceed 9 (1 star and 8 planets) and needs to be constant. 
+- The gravitational constant needs to be exactly equal to 1. Note that you can always [rescale](../units/) your system such that G=1. 
+- The integrator always combines the first and last drift step (`safe_mode=0` for WHFast). 
+- No variational or test particles are supported (although a particle can have mass 0). 
+- MEGNO and other chaos indicators are not supported.
+- WHFast512 always uses democratic heliocentric coordinates. Jacobi coordinates are not supported.
+- The timestep needs to be constant and the `exact_finish_time` flag needs to be set to 0. To change the timestep, first synchronize the simulation, then call `reb_integrator_reset()`.
+- The masses of all particles need to be constant. To change the masses, first synchronize the simulation, then call `reb_integrator_reset()`.
+- Additional forces (other than the GR potential) and REBOUNDx are not supported.
+
+
+The setting for WHFast512 are stored in the `reb_simulation_integrator_whfast512` structure, which itself is part of the simulation structure. 
+The following settings are available:
+
+`unsigned int keep_unsynchronized`
+:   This flag determines if democratic heliocentric coordinates are re-used after subsequent calls to `reb_integrate()`. The default is 0. This makes WHFast512 recalculate democratic heliocentric coordinates at the beginning of each `reb_integrate()` call. Set this flag to 1 if you want to continue an integration using unsynchronized democratic heliocentric coordinates. This is useful if you require outputs (and therefore synchronization) but don't want the integration to be affected by the output to allow for bit-wise reproducibility.
+
+`unsigned int gr_potential`
+:   This flag determines if an additional $1/r^2$ potential is included in the force calculation. The default is 0. Set to 1 to turn on the potential. This can be used to mimic general relativistic precession. Note that this feature assumes [units](../units/) of AU and year/2pi. 
+

@@ -30,7 +30,7 @@ nav:
       - collisions.md
       - boundaryconditions.md
       - gravity.md
-    - 'Other concepts':
+    - "Other concepts":
       - units.md
       - orbitalelements.md
       - simulationarchive.md
@@ -39,6 +39,7 @@ nav:
       - c_randomsamplingfunctions.md
       - c_outputfunctions.md
       - miscellaneous.md
+      - mpi.md
   - "Examples":
     - examples.md
     - "Planetary systems":
@@ -78,6 +79,7 @@ nav:
       - "Advanced topics":
         - ipython_examples/AdvWHFast.ipynb
         - c_examples/high_order_symplectic.md
+        - c_examples/whfast512_solar_system.md
         - ipython_examples/Resonances_of_Jupiters_moons.ipynb
         - ipython_examples/TransitTimingVariations.ipynb
         - ipython_examples/HyperbolicOrbits.ipynb
