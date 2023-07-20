@@ -499,7 +499,7 @@ static int reb_integrator_ias15_step(struct reb_simulation* r) {
     r->t = t_beginning;
     // Find new timestep
     const double dt_done = r->dt;
-    const double dtmode_zeta = 2.4 * sqrt7(r->ri_ias15.epsilon);
+    const double dtmode_zeta = 2.2 * sqrt7(r->ri_ias15.epsilon);
     double safety_factor = safety_factor_dtmode_0;
     double dt_new;
 
